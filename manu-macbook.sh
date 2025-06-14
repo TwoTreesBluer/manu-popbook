@@ -1,95 +1,73 @@
 #!/bin/bash
 
-# manu-macbook.sh - Gera o pacote .deb com tema visual macOS para Pop!_OS
-# Autor: Mestre IA para o Mestre Marcelo e a Jedi Manu 🌟
+# Caminho base
+PKG="manu-macbook"
+VERSION="1.1"
+DIR="$HOME/${PKG}-${VERSION}"
+DEBIAN="$DIR/DEBIAN"
 
-set -e
+echo ">> Criando estrutura do pacote..."
+mkdir -p "$DEBIAN"
+mkdir -p "$DIR/usr/share/themes"
+mkdir -p "$DIR/usr/share/icons"
+mkdir -p "$DIR/usr/share/backgrounds/manu"
+mkdir -p "$DIR/usr/share/sounds"
+mkdir -p "$DIR/usr/share/applications"
+mkdir -p "$DIR/usr/share/manu-popbook/scripts"
+mkdir -p "$DIR/usr/bin"
 
-# 1. Criar estrutura de diretórios
-mkdir -p manu-macbook/DEBIAN
-mkdir -p manu-macbook/usr/share/themes
-mkdir -p manu-macbook/usr/share/icons
-mkdir -p manu-macbook/usr/share/backgrounds/manu
-mkdir -p manu-macbook/usr/share/manu-popbook
-mkdir -p manu-macbook/usr/share/applications
-
-# 2. Criar o arquivo de controle do .deb
-cat <<EOF > manu-macbook/DEBIAN/control
-Package: manu-macbook
-Version: 1.0
-Section: utils
-Priority: optional
+echo ">> Criando arquivo de controle..."
+cat <<EOF > "$DEBIAN/control"
+Package: $PKG
+Version: $VERSION
 Architecture: all
-Depends: gnome-tweaks, plank, curl, unzip, git
-Maintainer: Mestre Marcelo <demarceloos10@gmail.com>
-Description: Transforma o Pop!_OS em um clone visual do macOS Ventura para Manu
+Maintainer: Manu Hackintosh Team
+Depends: plank, gnome-tweaks, sassc, libxml2-utils, openssh-server, xrdp
+Description: Transforma o Pop!_OS em um clone visual do macOS Ventura
 EOF
 
-# 3. Criar script de pós-instalação
-cat <<'EOF' > manu-macbook/DEBIAN/postinst
+echo ">> Criando script pós-instalação..."
+cat <<'EOF' > "$DEBIAN/postinst"
 #!/bin/bash
 set -e
 
-# Baixar temas, ícones, cursores
-cd /usr/share/manu-popbook
+echo "[+] Aplicando configurações de tema e dock..."
 
-echo "Baixando temas WhiteSur..."
-git clone --depth=1 https://github.com/vinceliuice/WhiteSur-gtk-theme.git
-cd WhiteSur-gtk-theme
-./install.sh -d /usr/share/themes -c dark -i pop -t default
-cd ..
-
-echo "Baixando ícones McMojave..."
-git clone --depth=1 https://github.com/vinceliuice/McMojave-circle.git
-cd McMojave-circle
-./install.sh -d /usr/share/icons
-cd ..
-
-echo "Baixando cursor estilo macOS..."
-git clone --depth=1 https://github.com/ful1e5/apple_cursor.git
-cp -r apple_cursor/macOS-Monterey /usr/share/icons/
-
-# Papel de parede padrão macOS Ventura
-curl -L -o /usr/share/backgrounds/manu/ventura.jpg https://raw.githubusercontent.com/krstcs/macOS-wallpapers/main/macOS%20Ventura/macOS%20Ventura.jpg
-
-# Ativar o visual via gsettings
-gsettings set org.gnome.desktop.interface gtk-theme "WhiteSur-dark"
-gsettings set org.gnome.desktop.wm.preferences theme "WhiteSur-dark"
+# Aplicar temas via gsettings
+gsettings set org.gnome.desktop.interface gtk-theme "WhiteSur-Dark"
 gsettings set org.gnome.desktop.interface icon-theme "McMojave-circle"
 gsettings set org.gnome.desktop.interface cursor-theme "macOS-Monterey"
-gsettings set org.gnome.desktop.background picture-uri "file:///usr/share/backgrounds/manu/ventura.jpg"
+gsettings set org.gnome.desktop.background picture-uri 'file:///usr/share/backgrounds/manu/ventura.jpg'
 
-# Ativar dock com Plank
-mkdir -p ~/.config/autostart
-cat <<EOL > ~/.config/autostart/plank.desktop
+# Ativar Plank no login
+mkdir -p /home/$USER/.config/autostart
+cat <<EOT > /home/$USER/.config/autostart/plank.desktop
 [Desktop Entry]
-Name=Plank
+Type=Application
 Exec=plank
-Type=Application
+Hidden=false
+NoDisplay=false
 X-GNOME-Autostart-enabled=true
-EOL
+Name=Plank
+Comment=Mac-like dock
+EOT
 
-# Recarregar GNOME Tweaks (opcional)
-echo "Instalação concluída. Reinicie para aplicar totalmente."
+# Ativar SSH e XRDP
+systemctl enable ssh
+systemctl start ssh
+systemctl enable xrdp
+systemctl start xrdp
+
+exit 0
 EOF
 
-chmod +x manu-macbook/DEBIAN/postinst
+chmod 755 "$DEBIAN/postinst"
 
-# 4. Criar .desktop de atalho
-cat <<EOF > manu-macbook/usr/share/applications/manu-popbook.desktop
-[Desktop Entry]
-Name=Manu PopBook Setup
-Exec=gnome-tweaks
-Icon=apple
-Type=Application
-Categories=Settings;
-EOF
+echo ">> Copie seus temas, ícones, e arquivos de som para as pastas corretas dentro de:"
+echo "   $DIR/usr/share/..."
 
-# 5. Empacotar
-dpkg-deb --build manu-macbook
+echo ">> Gerando o pacote .deb..."
+dpkg-deb --build "$DIR"
+mv "${DIR}.deb" "$HOME/${PKG}-${VERSION}.deb"
 
-# 6. Resultado
-mv manu-macbook.deb manu-macbook-1.0.deb
-
-echo "\n✅ Arquivo gerado: manu-macbook-1.0.deb"
-echo "Pronto para instalação com dois cliques ou 'sudo dpkg -i manu-macbook-1.0.deb'"
+echo "✅ Pacote gerado: $HOME/${PKG}-${VERSION}.deb"
